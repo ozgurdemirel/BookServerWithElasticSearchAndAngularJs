@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-COMPATIBLE" content="IE=edge">
+    <title>Search server with angular and elasticsearch</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="css/normalize.css">
+    <link rel="stylesheet" href="css/app.css">
+    <link rel="stylesheet" href="css/spin.css">
+    <link href='https://fonts.googleapis.com/css?family=Lato' rel='stylesheet' type='text/css'>
+
+    <script src="bower_components/angular/angular.min.js"></script>
+    <script src="bower_components/angular-sanitize/angular-sanitize.min.js"></script>
+    <script src="bower_components/elasticsearch/elasticsearch.angular.js"></script>
+    <script src="js/search-app.js"></script>
+
+</head>
+<body ng-app="searchApp" ng-controller="SearchResultList">
+
+<div class="search-form">
+    <form ng-submit="search()">
+        <input type="text" ng-model="searchTerms" placeholder="Search for Books" class="search-input"/>
+        <input type="submit" value="Search" class="search-submit"/>
+    </form>
+</div>
+<section class="results">
+    <h1 class="search-title">
+        Results for (<strong>{{results.searchTerms}}</strong>) {{results.documentCount}}
+    </h1>
+
+    <p ng-if="noResults" class="no-results">
+        No Results were found for your search
+    </p>
+    <ul>
+        <li ng-repeat="book in results.documents">
+            <strong>
+                {{book.title}}
+                <p>
+                    {{book['detailed description']}}
+                </p>
+            </strong>
+        </li>
+    </ul>
+    <button ng-click="getNextPage()" ng-if="canGetNextPage" class="load-next">Load More Results</button>
+
+    <div ng-if="isSearching" class="throbber">
+        <div class="sk-folding-cube">
+            <div class="sk-cube1 sk-cube"></div>
+            <div class="sk-cube2 sk-cube"></div>
+            <div class="sk-cube4 sk-cube"></div>
+            <div class="sk-cube3 sk-cube"></div>
+        </div>
+    </div>
+</section>
+
+
+</body>
+</html>
