@@ -18,9 +18,15 @@ searchApp.service('searchService', function ($q, esFactory) {
                     match: {
                         _all: searchTerms
                     }
+                },
+            from: resultPage * 10,
+            highlight : {
+                fields : {
+                    "title" : { "number_of_fragments" : 100, "fragment_size": 10000},
+                    "detailed description" : { "number_of_fragments" : 100, "fragment_size": 10000}
                 }
-            },
-            from: resultPage * 10
+            }
+        }
         }).then(function (es_return) {
             deferred.resolve(es_return);
         }, function (error) {
@@ -31,8 +37,19 @@ searchApp.service('searchService', function ($q, esFactory) {
     this.formatResults = function (documents) {
         var formattedResults = [];
         documents.forEach(function (document) {
+            var documentSource = document._source;
+            angular.forEach(documentSource,function(value,field){
+                var highlights = document.highlight || {};
+                var highlight = highlights[field] || false;
+                if (highlight){
+                    documentSource[field] = highlight[0];
+                }
+            });
+
+
+
             formattedResults.push(document._source);
-            console.log(JSON.stringify(document._source));
+          //  console.log(JSON.stringify(document._source));
         });
 
         return formattedResults;
