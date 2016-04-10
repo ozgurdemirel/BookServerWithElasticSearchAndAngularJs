@@ -19,13 +19,7 @@ searchApp.service('searchService', function ($q, esFactory) {
                         _all: searchTerms
                     }
                 },
-            from: resultPage * 10,
-            highlight : {
-                fields : {
-                    "title" : { "number_of_fragments" : 100, "fragment_size": 10000},
-                    "detailed description" : { "number_of_fragments" : 100, "fragment_size": 10000}
-                }
-            }
+            from: resultPage * 10
         }
         }).then(function (es_return) {
             deferred.resolve(es_return);
@@ -34,26 +28,7 @@ searchApp.service('searchService', function ($q, esFactory) {
         });
         return deferred.promise;
     };
-    this.formatResults = function (documents) {
-        var formattedResults = [];
-        documents.forEach(function (document) {
-            var documentSource = document._source;
-            angular.forEach(documentSource,function(value,field){
-                var highlights = document.highlight || {};
-                var highlight = highlights[field] || false;
-                if (highlight){
-                    documentSource[field] = highlight[0];
-                }
-            });
 
-
-
-            formattedResults.push(document._source);
-          //  console.log(JSON.stringify(document._source));
-        });
-
-        return formattedResults;
-    }
 
 });
 
@@ -79,7 +54,7 @@ searchApp.controller('SearchResultList', function ($scope, searchService) {
                 if (totalHits > 0) {
 
                     $scope.results.documentCount = totalHits;
-                    $scope.results.documents.push.apply($scope.results.documents, searchService.formatResults(es_return.hits.hits));
+                    $scope.results.documents.push.apply($scope.results.documents, es_return.hits.hits);
 
 
                 } else {
