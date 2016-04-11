@@ -9,8 +9,12 @@ searchApp.service('searchService', function ($q, esFactory) {
         host: 'localhost:9200'
     });
 
-    this.search = function (searchTerms, resultPage) {
+    this.search = function (searchTerms, resultPage, selectedSort) {
         var deferred = $q.defer();
+
+        var sortObject = {};
+        sortObject[selectedSort.name] = selectedSort.direction;
+
         esClient.search({
             index: 'books',
             body: {
@@ -19,8 +23,14 @@ searchApp.service('searchService', function ($q, esFactory) {
                         _all: searchTerms
                     }
                 },
-            from: resultPage * 10
-        }
+                sort: [sortObject],
+                from: resultPage * 10,
+                aggs : {
+                    topics : {
+                        terms : {field : "topics"}
+                    }
+                }
+            }
         }).then(function (es_return) {
             deferred.resolve(es_return);
         }, function (error) {
@@ -28,7 +38,15 @@ searchApp.service('searchService', function ($q, esFactory) {
         });
         return deferred.promise;
     };
+    this.formatResults = function (documents) {
+        var formattedResults = [];
+        documents.forEach(function (document) {
+            formattedResults.push(document._source);
+            //  console.log(JSON.stringify(document._source));
+        });
 
+        return formattedResults;
+    }
 
 });
 
@@ -46,17 +64,19 @@ searchApp.controller('SearchResultList', function ($scope, searchService) {
 
     var getResults = function () {
         $scope.isSearching = true;
-        searchService.search($scope.results.searchTerms, $scope.resultsPage).then(function (es_return) {
-                console.log(es_return);
+        searchService.search(
+            $scope.results.searchTerms,
+            $scope.resultsPage,
+            $scope.selectedSort
+        ).then(function (es_return) {
+               // console.log(es_return);
                 var totalHits = es_return.hits.total;
                 //var e = new Date().getTime() + (5 * 1000); //5 seconds pause purpose of  test
                 //while (new Date().getTime() <= e) {}
                 if (totalHits > 0) {
-
                     $scope.results.documentCount = totalHits;
-                    $scope.results.documents.push.apply($scope.results.documents, es_return.hits.hits);
-
-
+                    $scope.results.documents.push.apply($scope.results.documents, searchService.formatResults(es_return.hits.hits));
+                 //   console.log($scope.results.documents);
                 } else {
                     $scope.noResults = true;
                 }
@@ -68,6 +88,20 @@ searchApp.controller('SearchResultList', function ($scope, searchService) {
                 $scope.isSearching = false;
             }
         )
+    };
+
+
+    // Sort
+    $scope.sortOptions = [
+        {name: '_score', displayName: 'Relevancy', direction: 'desc'},
+        {name: 'price_gbp', displayName: 'Price', direction: 'asc'}
+    ];
+
+    $scope.selectedSort = $scope.sortOptions[0];
+
+    $scope.updateSort = function () {
+        resetResults();
+        getResults();
     };
 
     $scope.$watchGroup(['results', 'noResults', 'isSearching'], function () {
