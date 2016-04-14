@@ -9,7 +9,7 @@ searchApp.service('searchService', function ($q, esFactory) {
         host: 'localhost:9200'
     });
 
-    this.search = function (searchTerms, resultPage, selectedSort) {
+    this.search = function (searchTerms, resultPage, selectedSort, selectedFilters) {
         var deferred = $q.defer();
 
         var sortObject = {};
@@ -25,9 +25,9 @@ searchApp.service('searchService', function ($q, esFactory) {
                 },
                 sort: [sortObject],
                 from: resultPage * 10,
-                aggs : {
-                    topics : {
-                        terms : {field : "topics"}
+                aggs: {
+                    topics: {
+                        terms: {field: "topics"}
                     }
                 }
             }
@@ -50,7 +50,50 @@ searchApp.service('searchService', function ($q, esFactory) {
 
 });
 
-searchApp.controller('SearchResultList', function ($scope, searchService) {
+searchApp.service('filterService', function () {
+
+    this.filters = {
+        availableFilters: {},
+        selectedFilters: []
+    };
+
+    this.findSelectedFilter = function (field, value) {
+        var selectedFilters = this.filters.selectedFilters;
+
+        for (var i = 0; i < selectedFilters.length; i++) {
+            var obj = selectedFilters[i];
+            if (obj.field == field && obj.value == value) {
+                return i;
+            }
+        }
+        return -1;
+    };
+
+    this.formatFilters = function (aggregations) {
+        var self = this;
+        var formattedFilters = {};
+        for (var aggregation in aggregations) {
+            if (aggregations.hasOwnProperty(aggregation)) {
+                var filters = aggregations[aggregation].buckets.map(function (obj) {
+                    var isSelected = function () {
+                        return self.findSelectedFilter(aggregation, obj.key) == -1 ? false : true;
+                    };
+                    return {
+                        value: obj.key,
+                        count: obj.doc_count,
+                        isSelected: isSelected()
+                    }
+                });
+                formattedFilters[aggregation] = filters;
+            }
+        }
+        this.filters.availableFilters = formattedFilters;
+    };
+
+});
+
+
+searchApp.controller('SearchResultList', function ($scope, searchService, filterService) {
     $scope.results = {
         searchTerms: null,
         documentCount: null,
@@ -67,16 +110,19 @@ searchApp.controller('SearchResultList', function ($scope, searchService) {
         searchService.search(
             $scope.results.searchTerms,
             $scope.resultsPage,
-            $scope.selectedSort
+            $scope.selectedSort,
+            filterService.filters.selectedFilters
         ).then(function (es_return) {
-               // console.log(es_return);
+                // console.log(es_return);
                 var totalHits = es_return.hits.total;
                 //var e = new Date().getTime() + (5 * 1000); //5 seconds pause purpose of  test
                 //while (new Date().getTime() <= e) {}
                 if (totalHits > 0) {
                     $scope.results.documentCount = totalHits;
                     $scope.results.documents.push.apply($scope.results.documents, searchService.formatResults(es_return.hits.hits));
-                 //   console.log($scope.results.documents);
+                    //   console.log($scope.results.documents);
+                    filterService.formatFilters(es_return.aggregations);
+                    console.log(filterService.filters.availableFilters);
                 } else {
                     $scope.noResults = true;
                 }
